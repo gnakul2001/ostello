@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:ostello/components/radio_button.dart';
 import 'package:ostello/constants/constants.dart';
 import 'package:ostello/filters/sort_filter.dart';
@@ -6,11 +7,28 @@ import 'package:ostello/utils.dart';
 
 // A custom widget that represents a dropdown button.
 class CustomDropdownButton extends StatefulWidget {
-  // A list of filters that will be shown as options in the dropdown.
+  // A list of filters that represents the various sorting options
+  // available in the dropdown.
   final List<SortFilter> sortFilters;
 
-  // Constructor that takes in the list of filters and an optional key for this widget.
-  const CustomDropdownButton(this.sortFilters, {super.key});
+  // An optional callback function that gets triggered when a
+  // filter option in the dropdown is tapped. The function receives
+  // a String argument which is presumably the key or identifier
+  // for the tapped filter.
+  final Function(SortFilter)? onTap;
+  final String? text;
+
+  // Constructor for the CustomDropdownButton widget.
+  // It takes in a required list of sort filters and has two optional
+  // named parameters: a key for the widget and a callback function
+  // that gets triggered on tap.
+  const CustomDropdownButton(
+    this.sortFilters, // Positional parameter for the list of sort filters
+    {
+    super.key, // Named parameter for the key inherited from the parent class
+    this.onTap, // Named parameter for the onTap callback function
+    this.text,
+  });
 
   // Overrides the createState method to return an instance of CustomDropdownButtonState.
   @override
@@ -36,6 +54,10 @@ class CustomDropdownButtonState extends State<CustomDropdownButton> {
     // Setting the container width.
     containerWidth = 152 * fem;
 
+    // Check if the text property of the widget is not equal to "sort" (ignoring case).
+    // If the text is null or equal to "sort" (case insensitive), isSelected will be false. Otherwise, it will be true.
+    bool isSelected = (widget.text ?? "").toLowerCase() != "sort";
+
     // Return a GestureDetector wrapping the dropdown container.
     return GestureDetector(
       // Handling the onTap to toggle the dropdown.
@@ -54,7 +76,7 @@ class CustomDropdownButtonState extends State<CustomDropdownButton> {
 
         // Applying decoration to the filter container.
         decoration: ShapeDecoration(
-          color: Colors.white,
+          color: !isSelected ? Colors.white : Constants.primaryColor,
           shape: RoundedRectangleBorder(
             side: BorderSide(
               width: 1 * fem,
@@ -69,12 +91,12 @@ class CustomDropdownButtonState extends State<CustomDropdownButton> {
           children: [
             // "Sort" text element.
             Text(
-              'Sort',
+              widget.text ?? "Sort",
               style: fontStyles(
                 Constants.defaultFont,
                 fontSize: 14 * ffem,
                 fontWeight: FontWeight.w400,
-                color: Constants.primaryColor,
+                color: isSelected ? Colors.white : Constants.primaryColor,
                 height: 1.21 * fem,
                 letterSpacing: 0.14 * fem,
               ),
@@ -87,10 +109,17 @@ class CustomDropdownButtonState extends State<CustomDropdownButton> {
                 width: 9 * fem,
                 height: 9 * fem,
                 // Displaying the dropdown icon.
-                child: Image.asset(
-                  'assets/images/down_button.png',
+                child: SvgPicture.asset(
+                  // Load the SVG asset specified in the Constants class.
+                  Constants.iconDown,
+                  // Define the dimensions of the SVG icon using the scaling factor 'fem'.
                   width: 9 * fem,
                   height: 9 * fem,
+                  // Apply a color filter to the SVG icon. If 'isSelected' is true, use white; otherwise, use the primary color.
+                  colorFilter: ColorFilter.mode(
+                    isSelected ? Colors.white : Constants.primaryColor,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
             ),
@@ -124,12 +153,12 @@ class CustomDropdownButtonState extends State<CustomDropdownButton> {
 
   // Function to close the dropdown.
   void closeDropdown() {
+    if (!isDropdownOpened) return;
     _overlayEntry?.remove(); // Remove the overlay entry from the widget tree.
 
     // Update the UI to reflect the dropdown's closed state.
-    setState(() {
-      isDropdownOpened = false; // Mark the dropdown as closed.
-    });
+    isDropdownOpened = false; // Mark the dropdown as closed.
+    setState(() {});
   }
 
   // Function to create the overlay for the dropdown.
@@ -184,37 +213,61 @@ class CustomDropdownButtonState extends State<CustomDropdownButton> {
                     for (int i = 0; i < widget.sortFilters.length; i++)
                       Container(
                         margin: EdgeInsets.only(bottom: 5.0 * fem),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Radio button for each dropdown item.
-                            Container(
-                              margin: EdgeInsets.fromLTRB(
-                                  0 * fem, 0 * fem, 12 * fem, 0 * fem),
-                              width: 17 * fem,
-                              height: 17 * fem,
-                              child: RadioButton(
-                                isChecked: widget.sortFilters[i].isChecked,
-                              ),
-                            ),
-                            // Text label for each dropdown item.
-                            Expanded(
-                              child: Text(
-                                widget.sortFilters[i].title,
-                                maxLines: 1,
-                                softWrap: true,
-                                overflow: TextOverflow.ellipsis,
-                                style: fontStyles(
-                                  Constants.defaultFont,
-                                  fontSize: 14 * ffem,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.71 * fem,
-                                  color: Colors.black,
-                                  decoration: TextDecoration.none,
+                        child: GestureDetector(
+                          // Define the behavior to execute when the GestureDetector is tapped
+                          onTap: () {
+                            // Check if the onTap callback provided in the widget is not null
+                            if (widget.onTap != null) {
+                              // If the onTap callback is not null, call it with the key
+                              // of the currently iterated sortFilter as an argument
+                              widget.onTap!(widget.sortFilters[i]);
+
+                              // Iterate through each sortFilter in the widget's sortFilters list
+                              for (var e in widget.sortFilters) {
+                                // Set the isChecked property of each sortFilter to false
+                                e.isChecked = false;
+                              }
+
+                              // Set the isChecked property of the currently iterated sortFilter to true
+                              widget.sortFilters[i].isChecked = true;
+
+                              // Close the dropdown
+                              closeDropdown();
+                            }
+                          },
+
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Radio button for each dropdown item.
+                              Container(
+                                margin: EdgeInsets.fromLTRB(
+                                    0 * fem, 0 * fem, 12 * fem, 0 * fem),
+                                width: 17 * fem,
+                                height: 17 * fem,
+                                child: RadioButton(
+                                  isChecked: widget.sortFilters[i].isChecked,
                                 ),
                               ),
-                            ),
-                          ],
+                              // Text label for each dropdown item.
+                              Expanded(
+                                child: Text(
+                                  widget.sortFilters[i].title,
+                                  maxLines: 1,
+                                  softWrap: true,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: fontStyles(
+                                    Constants.defaultFont,
+                                    fontSize: 14 * ffem,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.71 * fem,
+                                    color: Colors.black,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                   ],

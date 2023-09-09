@@ -30,17 +30,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ^5.1.0
-  flutter_svg: ^2.0.7
-  sprintf: ^7.0.0
-  speech_to_text: ^6.3.0
-  permission_handler: ^10.4.5
-  provider: ^6.0.5
-  dio: ^5.3.2
-  flutter_cache_manager: ^3.3.1
-  cached_network_image: ^3.2.3
-  shimmer: ^3.0.0
-  path_provider: ^2.1.1
+  google_fonts: ^5.1.0             # Provides easy access to Google Fonts directly in Flutter.
+  flutter_svg: ^2.0.7              # Allows rendering of SVGs in Flutter applications.
+  sprintf: ^7.0.0                  # Offers string formatting using C-style format specifications.
+  speech_to_text: ^6.3.0           # Enables speech recognition functionality in the app.
+  permission_handler: ^10.4.5      # Manages and handles permission requests for the app.
+  provider: ^6.0.5                 # A popular state management solution for Flutter.
+  dio: ^5.3.2                      # A powerful HTTP client for Dart, ideal for API calls.
+  flutter_cache_manager: ^3.3.1    # Provides caching capabilities for network requests.
+  cached_network_image: ^3.2.3     # Displays images from the internet and caches them.
+  shimmer: ^3.0.0                  # Offers a shimmer effect, commonly used as a loading indicator.
+  path_provider: ^2.1.1            # Allows access to common location directories on both Android and iOS.
+  sqflite: ^2.3.0                  # SQLite plugin for Flutter, providing a persistent database.
+  path: ^1.8.3                     # A comprehensive, cross-platform path manipulation library.
 
 
   # The following adds the Cupertino Icons font to your application.

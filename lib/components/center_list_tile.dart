@@ -169,7 +169,7 @@ class CenterList extends StatelessWidget {
                                         maxWidth: 109 * fem,
                                       ),
                                       child: Text(
-                                        centerModel.centerLocation,
+                                        centerModel.centerLocation ?? "",
                                         softWrap: true,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -219,7 +219,7 @@ class CenterList extends StatelessWidget {
                                     ),
                                   )
                                 : Text(
-                                    centerModel.centerName,
+                                    centerModel.centerName ?? "",
                                     softWrap: true,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -278,7 +278,8 @@ class CenterList extends StatelessWidget {
                                             ),
                                             // Text displaying star rating.
                                             Text(
-                                              centerModel.centerRating,
+                                              formatDouble(
+                                                  centerModel.centerRating),
                                               style: fontStyles(
                                                 Constants.defaultFont,
                                                 fontSize: 12 * ffem,
@@ -325,7 +326,7 @@ class CenterList extends StatelessWidget {
                                         ),
                                       )
                                     : Text(
-                                        "${centerModel.centerDistance}km away",
+                                        "${reduceLargeNumber(centerModel.centerDistance / 1000.0)}km away",
                                         style: fontStyles(
                                           Constants.defaultFont,
                                           fontSize: 12 * ffem,

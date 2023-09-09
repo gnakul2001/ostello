@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:ostello/components/ask_ostello.dart';
 import 'package:ostello/components/center_list_tile.dart';
 import 'package:ostello/components/custom_dropdown.dart';
+import 'package:ostello/components/filter_tag.dart';
 import 'package:ostello/constants/constants.dart';
+import 'package:ostello/database/db_helper.dart';
 import 'package:ostello/dio_client.dart';
 import 'package:ostello/filters/sort_filter.dart';
 import 'package:ostello/main.dart';
@@ -22,100 +24,68 @@ class Screen1 extends StatefulWidget {
 
 class Screen1State extends State<Screen1> {
   // Define variables related to layout configurations and screen properties
-  double fem =
-      0; // Factor for enhancing responsive design based on screen dimensions
-  double ffem = 0; // Factor specifically for font scaling in responsive design
-  bool isScreenPortrait =
-      true; // Boolean variable to determine if the screen is in portrait mode
-  List<Widget> centers =
-      []; // List to hold widgets representing each center's data
-  TextEditingController controller =
-      TextEditingController(); // Controller for text input
-  bool isInited = false; // Flag to determine if initialization is complete
 
-// Default function called when the widget is first created
+  // Factor for responsive design, adjusted based on screen size.
+  double fem = 0;
+
+  // Factor for font scaling in responsive design.
+  double ffem = 0;
+
+  // Boolean to check if the screen orientation is portrait.
+  bool isScreenPortrait = true;
+
+  // List containing widgets for each coaching center's data.
+  List<Widget> centers = [];
+
+  // Text controller for managing and capturing input text.
+  TextEditingController controller = TextEditingController();
+
+  // Flag to verify if the initialization process is complete.
+  bool isInited = false;
+
+  // Timer for debouncing, providing a delay in rapid actions like searching.
+  Timer? debounceTimer;
+
+  // Variable storing the current sort filter type.
+  String sortFilter = "relevance";
+
+  // Variable storing the textual representation of the current sort filter.
+  String? sortFilterText;
+
+  // Flags to represent various filter states.
+  bool filterWithin2KM = false; // Filter for centers within 2KM.
+  bool filterJEE = false; // Filter for centers offering JEE coaching.
+  bool filterOffers = false; // Filter for centers offering discounts or offers.
+
+  // Instance of DBHelper for database operations.
+  DBHelper? dbHelper;
+
+  // Default function called when the widget is first created
   @override
   void initState() {
     super.initState();
+    dbHelper = DBHelper.instance;
   }
 
-// Fetch data related to centers from the provided API endpoint
-  void fetchCenterData() async {
-    var url =
-        'https://raw.githubusercontent.com/gnakul2001/ostello-python-dummy-data/master/center-dummy-data.json';
-    DioClient dio = DioClient(); // Instantiate Dio client for network requests
-    Response response = await dio.get(url); // Make a GET request
+  // Overriding the dispose method to clean up resources before the widget is destroyed
+  @override
+  void dispose() {
+    // Dispose of the text controller to free up resources and prevent memory leaks
+    controller.dispose();
 
-    if (response.statusCode == 200) {
-      // Check if the request was successful
-      List<dynamic> centerData =
-          jsonDecode(response.data); // Decode the JSON data
-      centers.clear(); // Clear any existing data in the centers list
-
-      // Iterate through each center in the fetched data
-      for (var center in centerData) {
-        if (center["type"] == "list") {
-          // Check the type of the center data
-          var centerData = center["data"];
-          centers.add(
-            CenterList(
-              CenterModel(
-                centerImage: CenterImage(
-                  type: centerData["center_image"]["type"] ??
-                      "url", // Get the type of image (default to "url")
-                  url: centerData["center_image"]["url"] ??
-                      "", // Get the image URL
-                ),
-                centerLocation: centerData["center_location"] ??
-                    "", // Get the center location
-                centerName:
-                    centerData["center_name"] ?? "", // Get the center name
-                centerRating:
-                    centerData["center_rating"] ?? 0, // Get the center rating
-                centerDistance: centerData["center_distance"] ??
-                    0, // Get the distance to the center
-                centerTags: [
-                  ...[
-                    for (var tag in centerData["center_tags"] ??
-                        []) // Iterate through each tag
-                      CenterTag(
-                        tagText: tag["tag_text"] ?? "", // Get the tag text
-                        isHighlighted: tag["is_highlighted"] ??
-                            false, // Determine if the tag is highlighted
-                      )
-                  ]
-                ],
-                bottomTexts: [
-                  ...[
-                    for (var str in centerData["bottom_texts"] ?? [])
-                      str, // Iterate through bottom texts
-                  ]
-                ],
-              ),
-            ),
-          );
-        } else {
-          centers.add(
-            const AskOstello(),
-          );
-        }
-        setState(() {}); // Update the UI with the fetched data
-      }
-    } else {
-      throw Exception(
-          'Failed to load center data'); // Throw an exception if the request failed
+    // Check if the debounce timer exists
+    if (debounceTimer != null) {
+      // If the debounce timer is active, cancel it to free up resources
+      debounceTimer!.cancel();
     }
+
+    // Call the dispose method on the superclass to ensure all resources are cleaned up
+    super.dispose();
   }
 
-// Initialization function to set up necessary configurations and fetch data
+  // Initialization function to set up necessary configurations and fetch data
   Future<void> init() async {
     isInited = true; // Mark the initialization as complete
-    fem = Constants.fem(
-        context); // Calculate the responsive design factor based on the screen size
-    ffem = Constants.ffem(
-        context); // Calculate the font scaling factor based on the screen size
-    isScreenPortrait =
-        Constants.isScreenPortrait(context); // Determine the screen orientation
 
     // Add placeholder data to the centers list while waiting for the actual data
     centers.addAll([
@@ -126,13 +96,130 @@ class Screen1State extends State<Screen1> {
       CenterList(CenterModel(), isLoading: true),
       CenterList(CenterModel(), isLoading: true),
     ]);
+    setState(() {}); // Update the UI with the fetched data
 
-    fetchCenterData(); // Fetch the center data
+    try {
+      await loadCenterData(); // Fetch the center data
+    } catch (e) {
+      //
+    }
+
+    // Invoke the filterCenters function and await its completion.
+    await filterCenters();
+
+    // Listen to text changes in the search input
+    controller.addListener(handleSearch);
+  }
+
+  // This method handles the search functionality with a debounce effect.
+  // Debouncing ensures that the search action is not executed rapidly with every keystroke,
+  // but waits for a pause in typing before triggering.
+  handleSearch() {
+    // If there's an existing active debounce timer, cancel it.
+    // This ensures that the previous timer is cleared before setting up a new one.
+    if (debounceTimer != null && debounceTimer!.isActive) {
+      debounceTimer!.cancel();
+    }
+
+    // Set up a new timer that waits for a specified duration (1 second in this case)
+    // before executing its callback.
+    debounceTimer = Timer(const Duration(seconds: 1), () async {
+      // Once the timer expires (i.e., after 1 second of inactivity in typing),
+      // this callback is executed.
+      // Here, we're triggering a rebuild of the widget using setState.
+      // You can also place your search logic or any other required functionality here.
+      await filterCenters();
+    });
+  }
+
+  // Define an asynchronous function to filter centers.
+  filterCenters() async {
+    // Fetch and filter centers using the parameters set by the user.
+    centers = getWidgetsFromCenterModelList(
+      await dbHelper!.fetchFilteredCenters(
+        // Search term is taken from the text controller.
+        searchTerm: controller.text,
+        // Sorting filter (TODO:).
+        sortFilter: sortFilter,
+        // Boolean flag to filter centers that offer JEE coaching.
+        filterJEE: filterJEE,
+        // Boolean flag to filter centers that have offers.
+        filterOffers: filterOffers,
+        // Boolean flag to filter centers within 2KM.
+        filterWithin2KM: filterWithin2KM,
+      ),
+    );
+    // Call setState to rebuild the widget and reflect the changes.
+    setState(() {});
+  }
+
+  // Fetch data related to centers from the provided API endpoint
+  loadCenterData() async {
+    var url =
+        'https://raw.githubusercontent.com/gnakul2001/ostello-python-dummy-data/master/center-dummy-data.json';
+    DioClient dio = DioClient(); // Instantiate Dio client for network requests
+    Response response = await dio.get(url); // Make a GET request
+
+    if (response.statusCode == 200) {
+      // Check if the request was successful
+      List<dynamic> centerData =
+          jsonDecode(response.data); // Decode the JSON data
+
+      List<CenterModel> centerModels = [];
+
+      // Iterate through each center in the fetched data
+      for (var center in centerData) {
+        // Check the type of the center data
+        centerModels.add(
+          CenterModel(
+            centerImage: CenterImage(
+              type: (center["center_image"] ?? {})["type"] ??
+                  "url", // Get the type of image (default to "url")
+              url: (center["center_image"] ?? {})["url"] ??
+                  "", // Get the image URL
+            ),
+            centerLocation:
+                center["center_location"] ?? "", // Get the center location
+            centerName: center["center_name"] ?? "", // Get the center name
+            centerRating: center["center_rating"] ?? 0, // Get the center rating
+            centerDistance: center["center_distance"] ??
+                0, // Get the distance to the center
+            centerDiscount:
+                double.parse((center["center_discount"] ?? 0).toString()),
+            centerTags: [
+              ...[
+                for (var tag
+                    in center["center_tags"] ?? []) // Iterate through each tag
+                  CenterTag(
+                    tagText: tag["tag_text"] ?? "", // Get the tag text
+                  )
+              ],
+            ],
+            bottomTexts: [
+              ...[
+                for (var str in center["bottom_texts"] ?? [])
+                  str, // Iterate through bottom texts
+              ]
+            ],
+          ),
+        );
+      }
+      await dbHelper!.insertCenterModels(centerModels);
+    } else {
+      throw Exception(
+          'Failed to load center data'); // Throw an exception if the request failed
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!isInited) init(); // Initialize required variables or states
+    fem = Constants.fem(
+        context); // Calculate the responsive design factor based on the screen size
+    ffem = Constants.ffem(
+        context); // Calculate the font scaling factor based on the screen size
+    isScreenPortrait =
+        Constants.isScreenPortrait(context); // Determine the screen orientation
 
     return SizedBox(
       width: MediaQuery.of(context)
@@ -182,12 +269,12 @@ class Screen1State extends State<Screen1> {
                     ) {
                       // Display centers in a column layout in portrait mode
                       if (isScreenPortrait) {
-                        // Return a column with all the centers stacked vertically
+                        // Return a column with all the filtered centers stacked vertically
                         return Column(
                           children: centers,
                         );
                       } else {
-                        // Display centers in a grid-like layout in landscape mode
+                        // Display filtered centers in a grid-like layout in landscape mode
                         List<Widget> rows = [];
 
                         for (int i = 0; i < centers.length; i += 2) {
@@ -408,7 +495,7 @@ class Screen1State extends State<Screen1> {
               // Wrap the row of icons inside a container.
               padding: EdgeInsets.fromLTRB(
                 // Set padding for the container.
-                10 * fem,
+                0,
                 0,
                 11 * fem,
                 0,
@@ -417,6 +504,23 @@ class Screen1State extends State<Screen1> {
               child: Row(
                 // Define a row to contain multiple icons.
                 children: [
+                  // Check if the text in the controller is not empty.
+                  controller.text.isNotEmpty
+                      ?
+                      // If not empty, show an IconButton with a close (cross) icon.
+                      IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Constants.primaryColor,
+                          ),
+                          onPressed: () {
+                            // When the close icon is tapped, clear the text in the controller.
+                            controller.clear();
+                          },
+                        )
+                      :
+                      // If the text in the controller is empty, display an empty widget.
+                      const SizedBox.shrink(),
                   // Create a list of widgets as children of the row.
                   SizedBox(
                     // Define a sized box to contain the search icon.
@@ -563,252 +667,108 @@ class Screen1State extends State<Screen1> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Create the first filter Container.
-            Container(
-              // Set padding and decoration for the filter Container.
-              padding: EdgeInsets.fromLTRB(
-                11 * fem,
-                6 * fem,
-                6 * fem,
-                7 * fem,
-              ),
-              decoration: ShapeDecoration(
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(
-                    width: 1 * fem,
-                    color: Constants.primaryColor,
+            // Create a filter tag with icons for highlighted and unhighlighted states.
+            FilterTag(
+              "Filters",
+              iconHighlighted: Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  // Image used when the filter tag is highlighted.
+                  image: DecorationImage(
+                    image: AssetImage(Constants.iconFilterWhite),
+                    fit: BoxFit.fill,
                   ),
-                  borderRadius: BorderRadius.circular(18 * fem),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Add the "Filters" text.
-                  Text(
-                    'Filters',
-                    style: fontStyles(
-                      Constants.defaultFont,
-                      fontSize: 14 * ffem,
-                      fontWeight: FontWeight.w400,
-                      color: Constants.primaryColor,
-                      height: 1.21 * fem,
-                      letterSpacing: 0.14 * fem,
-                    ),
+              iconUnHighlighted: Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  // Image used when the filter tag is not highlighted.
+                  image: DecorationImage(
+                    image: AssetImage(Constants.iconFilterDark),
+                    fit: BoxFit.fill,
                   ),
-                  // Add an image inside the filter Container.
-                  Align(
-                    alignment: Alignment.center,
-                    child: Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      width: 17 * fem,
-                      height: 17 * fem,
-                      child: Image.asset(
-                        'assets/images/filter_button.png',
-                        width: 12 * fem,
-                        height: 12 * fem,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-            // Add some horizontal spacing.
+
+            // Add some horizontal spacing between filter tags.
             SizedBox(
               width: 8 * fem,
             ),
+
+            // Dropdown button to select a sort filter option.
             CustomDropdownButton(
+              // Map the constants to sort filter options.
               [
-                SortFilter(
-                  "RelevanceRelevance",
-                  isChecked: true,
-                ),
-                SortFilter("Distance"),
-                SortFilter("Price"),
-                SortFilter("Rating"),
+                ...Constants.sortFilterOpt.map((element) {
+                  return SortFilter(
+                    element["value"] ?? "",
+                    element["key"] ?? "",
+                    isChecked: (element["key"] ?? "") == sortFilter,
+                  );
+                }),
               ],
+              text: sortFilterText,
               key: dropdownKey,
+              onTap: (filter) async {
+                sortFilter = filter.key;
+                sortFilterText =
+                    sortFilter == "relevance" ? "Sort" : filter.title;
+                await filterCenters(); // Filter the centers based on selected option.
+              },
             ),
+
             // Add some horizontal spacing.
             SizedBox(
               width: 8 * fem,
             ),
-            // Create the second filter Container.
-            Container(
-              // Set padding and decoration for the filter Container.
-              padding: EdgeInsets.fromLTRB(
-                13 * fem,
-                6 * fem,
-                10 * fem,
-                7 * fem,
-              ),
-              decoration: ShapeDecoration(
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(
-                    width: 1 * fem,
-                    color: Constants.primaryColor,
-                  ),
-                  borderRadius: BorderRadius.circular(18 * fem),
-                ),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  iconSize: 0,
-                  value: "Option 1",
-                  onChanged: (newValue) {
-                    setState(() {
-                      // "" = newValue;
-                    });
-                  },
-                  items:
-                      ['Option 1', 'Option 2', 'Option 3'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius:
-                              BorderRadius.circular(15), // Rounded corners
-                          border:
-                              Border.all(color: Colors.blueAccent, width: 2),
-                        ),
-                        padding: const EdgeInsets.all(10),
-                        child: Text(value),
-                      ),
-                    );
-                  }).toList(),
-                  selectedItemBuilder: (BuildContext context) {
-                    return [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Sort',
-                            style: fontStyles(
-                              Constants.defaultFont,
-                              fontSize: 14 * ffem,
-                              fontWeight: FontWeight.w400,
-                              color: Constants.primaryColor,
-                              height: 1.21 * fem,
-                              letterSpacing: 0.14 * fem,
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.center,
-                            child: Container(
-                              margin: const EdgeInsets.only(left: 12),
-                              width: 9 * fem,
-                              height: 9 * fem,
-                              child: Image.asset(
-                                'assets/images/down_button.png',
-                                width: 9 * fem,
-                                height: 9 * fem,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ];
-                  },
-                ),
-              ),
+
+            // Filter for centers within 2KM.
+            FilterTag(
+              "<2KM",
+              isHighlighted: filterWithin2KM,
+              onTap: () async {
+                filterWithin2KM = !filterWithin2KM;
+                await filterCenters(); // Filter the centers based on distance.
+              },
             ),
+
             // Add some horizontal spacing.
             SizedBox(
               width: 8 * fem,
             ),
-            // Create a filter Container with a background color.
-            Container(
-              width: 83 * fem,
-              height: MediaQuery.of(context).size.height,
-              decoration: ShapeDecoration(
-                color: Constants.primaryColor,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(
-                    width: 1 * fem,
-                    color: Constants.primaryColor,
-                  ),
-                  borderRadius: BorderRadius.circular(18 * fem),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '<2Km',
-                  style: fontStyles(
-                    Constants.defaultFont,
-                    fontSize: 14 * ffem,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white,
-                    height: 1.21 * fem,
-                    letterSpacing: 0.14 * fem,
-                  ),
-                ),
-              ),
+
+            // Filter for centers that cater to JEE preparation.
+            FilterTag(
+              "JEE",
+              isHighlighted: filterJEE,
+              onTap: () async {
+                filterJEE = !filterJEE;
+                await filterCenters(); // Filter the centers based on JEE tag.
+              },
             ),
+
             // Add some horizontal spacing.
             SizedBox(
               width: 8 * fem,
             ),
-            // Create a filter Container without a background color.
-            Container(
-              width: 83 * fem,
-              height: MediaQuery.of(context).size.height,
-              decoration: ShapeDecoration(
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(
-                    width: 1 * fem,
-                    color: Constants.primaryColor,
-                  ),
-                  borderRadius: BorderRadius.circular(18 * fem),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'JEE',
-                  style: fontStyles(
-                    Constants.defaultFont,
-                    fontSize: 14 * ffem,
-                    fontWeight: FontWeight.w400,
-                    color: Constants.primaryColor,
-                    height: 1.21 * fem,
-                    letterSpacing: 0.14 * fem,
-                  ),
-                ),
-              ),
+
+            // Filter for centers offering special deals or offers.
+            FilterTag(
+              "Offers",
+              isHighlighted: filterOffers,
+              onTap: () async {
+                filterOffers = !filterOffers;
+                await filterCenters(); // Filter the centers based on offers.
+              },
             ),
-            // Add some horizontal spacing.
+
+            // Add some additional spacing.
             SizedBox(
-              width: 8 * fem,
-            ),
-            // Create another filter Container with a margin.
-            Container(
-              margin: EdgeInsets.fromLTRB(0, 0, 26 * fem, 0),
-              width: 83 * fem,
-              height: MediaQuery.of(context).size.height,
-              decoration: ShapeDecoration(
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(
-                    width: 1 * fem,
-                    color: Constants.primaryColor,
-                  ),
-                  borderRadius: BorderRadius.circular(18 * fem),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'Offers',
-                  style: fontStyles(
-                    Constants.defaultFont,
-                    fontSize: 14 * ffem,
-                    fontWeight: FontWeight.w400,
-                    color: Constants.primaryColor,
-                    height: 1.21 * fem,
-                    letterSpacing: 0.14 * fem,
-                  ),
-                ),
-              ),
+              width: 26 * fem,
             ),
           ],
         ),
