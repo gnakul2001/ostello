@@ -30,6 +30,10 @@ class DBHelper {
     return _database!;
   }
 
+  get currDatabase {
+    return _database;
+  }
+
 // Initialization method for the database.
 // If the database doesn't exist, it creates one.
 // If it exists, it simply opens it.
@@ -93,12 +97,19 @@ class DBHelper {
     ''');
   }
 
-  // Method to insert a list of 'CenterModel' objects into the database.
-  // The method first deletes the current database to ensure a fresh start.
-  // Then, it proceeds to insert the center data and associated tags.
-  Future<void> insertCenterModels(List<CenterModel> centerModels) async {
-    // Delete the existing database.
-    await deleteDatabase();
+  /// Inserts a list of 'CenterModel' objects into the database.
+  ///
+  /// - If [deleteDB] is true (default), it first clears the existing database for a fresh insertion.
+  /// - Iterates through the provided [centerModels] list to insert center data and their associated tags.
+  ///
+  /// @param centerModels List of centers to be inserted into the database.
+  /// @param deleteDB (Optional) Whether to delete the existing database before insertion. Default is true.
+  Future<void> insertCenterModels(List<CenterModel> centerModels,
+      {deleteDB = true}) async {
+    if (deleteDB) {
+      // Delete the existing database.
+      await deleteDatabase();
+    }
 
     // Get an instance of the database.
     final db = await database;
@@ -218,6 +229,7 @@ class DBHelper {
     // Loop through each row in the result set.
     for (var row in result) {
       // Extract the required columns from the current row.
+      final id = row['id'];
       final imageType = row['image_type'];
       final imageUrl = row['image_url'];
       final location = row['location'];
@@ -235,6 +247,7 @@ class DBHelper {
       // Construct and add the CenterModel to the list.
       centerList.add(
         CenterModel(
+          id: id,
           centerImage: CenterImage(type: imageType, url: imageUrl),
           centerLocation: location,
           centerName: name,

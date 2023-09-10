@@ -68,3 +68,4 @@ lib/generated_plugin_registrant.dart
 .DS_STORE
 
 # End of https://www.toptal.com/developers/gitignore/api/flutter
+pubspec.lock

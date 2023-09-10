@@ -30,15 +30,33 @@ class CenterList extends StatelessWidget {
     double fem = Constants.fem(context);
     double ffem = Constants.ffem(context);
     bool isScreenPortrait = Constants.isScreenPortrait(context);
-    double centerInfoWidth =
-        // Card Width
-        (338 * fem) -
-            // Center Image Width
-            (157 * fem) -
-            // Left Card Padding
-            (16 * fem) -
-            // Left Padding
-            (26 * fem);
+    double centerInfoWidth = 0;
+    if (isScreenPortrait) {
+      centerInfoWidth = MediaQuery.of(context).size.width -
+          // Card Margins
+          ((26 * 2) * fem) -
+          // Center Image Width
+          (157 * fem) -
+          // Left Padding
+          (12 * fem) -
+          // Right Padding
+          (18 * fem) -
+          // Padding after image
+          (12 * fem);
+    } else {
+      centerInfoWidth = (MediaQuery.of(context).size.width / 2) -
+          // Card Margins
+          (26 * fem) -
+          (13 * fem) -
+          // Center Image Width
+          (157 * fem) -
+          // Left Padding
+          (12 * fem) -
+          // Right Padding
+          (18 * fem) -
+          // Padding after image
+          (12 * fem);
+    }
     // Return a Container widget.
     return Container(
       // Set margin for the Container using EdgeInsets.
@@ -310,18 +328,15 @@ class CenterList extends StatelessWidget {
                                 ),
                                 // Text displaying distance.
                                 isLoading
-                                    ? ShimmerBlock(
-                                        child: Container(
-                                          width: ((centerInfoWidth * 0.6) -
-                                                  5 -
-                                                  3 -
-                                                  6) *
-                                              fem,
-                                          height: 20 * fem,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xfff6effe),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
+                                    ? Expanded(
+                                        child: ShimmerBlock(
+                                          child: Container(
+                                            height: 20 * fem,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xfff6effe),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
                                           ),
                                         ),
                                       )

@@ -43,6 +43,8 @@ dependencies:
   path_provider: ^2.1.1            # Allows access to common location directories on both Android and iOS.
   sqflite: ^2.3.0                  # SQLite plugin for Flutter, providing a persistent database.
   path: ^1.8.3                     # A comprehensive, cross-platform path manipulation library.
+  mockito: ^5.4.2                  # Mock library to simulate the behavior of classes for unit testing purposes.
+  sqflite_common_ffi: ^2.3.0+2     # SQLite plugin for Flutter providing a common FFI (Foreign Function Interface) layer.
 
 
   # The following adds the Cupertino Icons font to your application.

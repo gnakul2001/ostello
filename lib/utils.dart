@@ -170,7 +170,8 @@ requestBluetoothPermission() async {
 }
 
 // Function to show a snackbar with a given message and an optional action.
-void showSnackbar(message, {String? labelText, Function()? onPressed}) {
+void showSnackbar(message,
+    {String? labelText, Function()? onPressed, BuildContext? context}) {
   try {
     // Create a snackbar with the provided message.
     final snackBar = SnackBar(
@@ -185,7 +186,7 @@ void showSnackbar(message, {String? labelText, Function()? onPressed}) {
           : null,
     );
     // Display the snackbar using the current context.
-    ScaffoldMessenger.of(getContext()).showSnackBar(snackBar);
+    ScaffoldMessenger.of(context ?? getContext()).showSnackBar(snackBar);
   }
   // If there's an error in showing the snackbar, catch the exception.
   catch (e) {

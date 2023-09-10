@@ -7,6 +7,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:ostello/components/center_list_tile.dart';
 import 'package:ostello/components/custom_dropdown.dart';
 import 'package:ostello/components/filter_tag.dart';
+import 'package:ostello/config/app_config.dart';
 import 'package:ostello/constants/constants.dart';
 import 'package:ostello/database/db_helper.dart';
 import 'package:ostello/dio_client.dart';
@@ -50,7 +51,7 @@ class Screen1State extends State<Screen1> {
   String sortFilter = "relevance";
 
   // Variable storing the textual representation of the current sort filter.
-  String? sortFilterText;
+  String? sortFilterText = "Sort";
 
   // Flags to represent various filter states.
   bool filterWithin2KM = false; // Filter for centers within 2KM.
@@ -59,6 +60,9 @@ class Screen1State extends State<Screen1> {
 
   // Instance of DBHelper for database operations.
   DBHelper? dbHelper;
+
+  // Flag to check if the application is currently under test
+  bool isUnderTest = false;
 
   // Default function called when the widget is first created
   @override
@@ -87,6 +91,8 @@ class Screen1State extends State<Screen1> {
   Future<void> init() async {
     isInited = true; // Mark the initialization as complete
 
+    final config = ConfigProvider.of(context)?.config;
+    isUnderTest = (config?.isUnderTest ?? false);
     // Add placeholder data to the centers list while waiting for the actual data
     centers.addAll([
       CenterList(CenterModel(), isLoading: true),
@@ -98,6 +104,10 @@ class Screen1State extends State<Screen1> {
     ]);
     setState(() {}); // Update the UI with the fetched data
 
+    if (isUnderTest) {
+      return;
+    }
+
     try {
       await loadCenterData(); // Fetch the center data
     } catch (e) {
@@ -107,8 +117,11 @@ class Screen1State extends State<Screen1> {
     // Invoke the filterCenters function and await its completion.
     await filterCenters();
 
-    // Listen to text changes in the search input
-    controller.addListener(handleSearch);
+    // Check if the current widget is still in the widget tree (i.e., it hasn't been disposed).
+    if (mounted) {
+      // Listen to text changes in the search input
+      controller.addListener(handleSearch);
+    }
   }
 
   // This method handles the search functionality with a debounce effect.
@@ -149,8 +162,12 @@ class Screen1State extends State<Screen1> {
         filterWithin2KM: filterWithin2KM,
       ),
     );
-    // Call setState to rebuild the widget and reflect the changes.
-    setState(() {});
+
+    // Check if the current widget is still in the widget tree (i.e., it hasn't been disposed).
+    if (mounted) {
+      // Call setState to rebuild the widget and reflect the changes.
+      setState(() {});
+    }
   }
 
   // Fetch data related to centers from the provided API endpoint
@@ -367,18 +384,20 @@ class Screen1State extends State<Screen1> {
             ),
           ),
           // Create a container for the title text.
-          Container(
-            // Set margin for the title text container.
-            margin: EdgeInsets.fromLTRB(0, 3 * fem, 0, 0),
-            child: Text(
-              'For JEE-Mains',
-              style: fontStyles(
-                Constants.defaultFont,
-                fontSize: 16 * ffem,
-                fontWeight: FontWeight.w600,
-                height: 1.06 * fem,
-                letterSpacing: 0.16 * fem,
-                color: const Color(0xff000000),
+          Expanded(
+            child: Container(
+              // Set margin for the title text container.
+              margin: EdgeInsets.fromLTRB(0, 3 * fem, 0, 0),
+              child: Text(
+                'For JEE-Mains',
+                style: fontStyles(
+                  Constants.defaultFont,
+                  fontSize: 16 * ffem,
+                  fontWeight: FontWeight.w600,
+                  height: 1.06 * fem,
+                  letterSpacing: 0.16 * fem,
+                  color: const Color(0xff000000),
+                ),
               ),
             ),
           ),
@@ -564,7 +583,8 @@ class Screen1State extends State<Screen1> {
                       // Define a gesture detector to handle tap events.
                       onTap: () async {
                         // Define an asynchronous function to handle the onTap event.
-                        if (await requestBluetoothPermission()) {
+                        if (!isUnderTest &&
+                            await requestBluetoothPermission()) {
                           // Request Bluetooth permission and proceed if granted.
                           SpeechToText speech = SpeechToText();
                           // Create an instance of the SpeechToText class.
@@ -607,17 +627,18 @@ class Screen1State extends State<Screen1> {
                                 }
                               },
                             );
-                          } else {
-                            // Show a snackbar if speech recognition is not available.
-                            showSnackbar(
-                              "The user has denied the use of speech recognition.",
-                            );
+                            return;
                           }
                         }
+                        showSnackbar(
+                          "The user has denied the use of speech recognition.",
+                        );
                       },
                       child: SvgPicture.asset(
                         // Set the SVG picture asset for the microphone icon.
                         Constants.iconMicrophone,
+
+                        key: const Key("microphoneIcon"),
                         // Set the icon from Constants class.
                         width: 23 * fem,
                         // Set the width of the icon.

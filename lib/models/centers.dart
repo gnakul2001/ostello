@@ -1,5 +1,8 @@
 // Class to represent a coaching center's data model.
 class CenterModel {
+  // id to fetch from SQlite DB.
+  int? id;
+
   // Image related to the center.
   CenterImage? centerImage;
 
@@ -25,6 +28,7 @@ class CenterModel {
   List<String>? bottomTexts;
 
   CenterModel({
+    this.id,
     this.centerImage,
     this.centerLocation = "",
     this.centerName = "",
