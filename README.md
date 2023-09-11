@@ -3,9 +3,15 @@
 [![Build](https://github.com/gnakul2001/ostello/actions/workflows/build.yml/badge.svg)](https://github.com/gnakul2001/ostello/actions/workflows/build.yml)
 
 
-![Ostello Banner](img/ostello-logo.svg)
+![Ostello Banner](assets_github/ostello-logo.svg)
 
 Welcome to the GitHub repository for the Institute Search Page developed for Ostello India Pvt Ltd. The app has been crafted using Flutter, emphasizing design accuracy, responsive layouts, and filtering functionality.
+
+## 📺 App Preview
+
+[![App Preview](assets_github/screenshot_1.png)](https://youtu.be/qc_gQ6Z2TLc)
+
+*Click on the image above to watch the app preview video.*
 
 ## 🎨 Design
 
