@@ -1,6 +1,6 @@
 # Ostello Institute Search Page - Flutter App
 
-![Flutter CI](https://github.com/gnakul2001/ostello/actions/workflows/build.yml/badge.svg)
+[![Build](https://github.com/gnakul2001/ostello/actions/workflows/build.yml/badge.svg)](https://github.com/gnakul2001/ostello/actions/workflows/build.yml)
 
 
 ![Ostello Banner](img/ostello-logo.svg)
