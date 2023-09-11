@@ -9,7 +9,7 @@ Welcome to the GitHub repository for the Institute Search Page developed for Ost
 
 ## 🎨 Design
 
-The design has been meticulously replicated from the provided Figma link, ensuring pixel-perfect accuracy. Emphasis has been given to layout, color schemes, typography, and visual elements.
+The design has been meticulously replicated from the provided Figma [link](https://www.figma.com/file/GALeEFWtc2JA7pKRIwf7TF/Flutter-Task?node-id=0%3A4&mode=dev), ensuring pixel-perfect accuracy. Emphasis has been given to layout, color schemes, typography, and visual elements.
 
 ## 🚀 Features
 
@@ -43,6 +43,11 @@ A Python script has been crafted to generate dummy data for demonstration purpos
 4. Run the app
    ```sh
    flutter run
+   ```
+
+5. Build the apk
+   ```sh
+   flutter build apk
    ```
 
 ## 🧪 Tests
