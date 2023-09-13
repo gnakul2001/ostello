@@ -56,6 +56,8 @@ A Python script has been crafted to generate dummy data for demonstration purpos
    flutter build apk
    ```
 
+6. Grab the APK from [this link](/assets_github/app-release.apk).
+
 ## 🧪 Tests
 
 To run the tests, use:
